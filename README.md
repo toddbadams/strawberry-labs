@@ -2,7 +2,7 @@
 
 ### Telling Edge from Luck
 
-*A whitepaper on the business problem SBFoundation solves, and the mathematics it uses to solve it.*
+*A whitepaper on the business problem Strawberry Labs solves, and the mathematics it uses to solve it.*
 
 ---
 
@@ -14,9 +14,9 @@
 
 ## 1. Executive summary
 
-SBFoundation is a **sole-trader, nightly, multi-asset risk-premium harvester**. In plain terms: it is a system for one person to systematically capture the persistent returns that markets pay for bearing certain risks — run once each evening on end-of-day data, starting with stocks and expanding deliberately outward.
+Strawberry Labs is a **sole-trader, nightly, multi-asset risk-premium harvester**. In plain terms: it is a system for one person to systematically capture the persistent returns that markets pay for bearing certain risks — run once each evening on end-of-day data, starting with stocks and expanding deliberately outward.
 
-What makes it different is not what it trades but what it *refuses* to trade. Most people operating at this scale lose money not because they lack ideas, but because they cannot tell a real edge from a lucky accident — and they bet real capital on the accident. SBFoundation is built, end to end, as an **evidence funnel** whose entire job is to make that mistake structurally difficult.
+What makes it different is not what it trades but what it *refuses* to trade. Most people operating at this scale lose money not because they lack ideas, but because they cannot tell a real edge from a lucky accident — and they bet real capital on the accident. Strawberry Labs is built, end to end, as an **evidence funnel** whose entire job is to make that mistake structurally difficult.
 
 The platform is honest about where it stands, and you should hold it to that:
 
@@ -54,7 +54,7 @@ There are only two sources of trading edge in existence:
 | **Risk premium** | Persistent compensation for bearing a systematic risk or exploiting a durable behavioral pattern | **Strong** — survives at one-person attention and capital scale |
 | **Market inefficiency** | Fleeting mispricing from events, microstructure, sentiment, or positioning | **Poor** — fast-decaying, and fights every disadvantage above |
 
-SBFoundation is, by deliberate design, a **risk-premium harvester**. It pursues returns that exist because they compensate someone for a real risk — and which therefore persist long enough for a person checking the market once a day to capture them. The inefficiency track is not deferred; it is *excluded* (see §3).
+Strawberry Labs is, by deliberate design, a **risk-premium harvester**. It pursues returns that exist because they compensate someone for a real risk — and which therefore persist long enough for a person checking the market once a day to capture them. The inefficiency track is not deferred; it is *excluded* (see §3).
 
 That risk premia exist, and persist, is not folklore. It is the central finding of decades of financial economics — from the Capital Asset Pricing Model of the 1960s, through Fama and French's three-factor model (1992), to the momentum effect documented by Jegadeesh and Titman (1993). The engine that turns a small edge into real performance is captured in one relationship, the **Fundamental Law of Active Management** (Grinold; Grinold and Kahn):
 
@@ -78,7 +78,7 @@ One disadvantage cuts the *other* way. The smallest, least-liquid stocks — mic
 
 ## 3. The operating model and its deliberate boundaries
 
-Every design decision in SBFoundation flows from one frame: **a single human operator, making one decision per day.** Concretely:
+Every design decision in Strawberry Labs flows from one frame: **a single human operator, making one decision per day.** Concretely:
 
 - A **nightly cycle** that produces a target portfolio from end-of-day data.
 - **One price source per instrument** — no cross-venue plumbing.
@@ -146,7 +146,7 @@ From there, the research-to-order spine runs: **Factor → Strategy → Portfoli
 
 ## 5. The mathematics of trust
 
-This is the heart of the platform and the heart of this paper. Each subsection below answers one business question, explains the concept in plain language, shows the platform's actual number, and names the published research that the hurdle comes from. The recurring message: **SBFoundation did not invent its standards — it adopted the literature's, and in one important case adopted a standard the literature explicitly recommended that most practitioners ignore.**[^numbers]
+This is the heart of the platform and the heart of this paper. Each subsection below answers one business question, explains the concept in plain language, shows the platform's actual number, and names the published research that the hurdle comes from. The recurring message: **Strawberry Labs did not invent its standards — it adopted the literature's, and in one important case adopted a standard the literature explicitly recommended that most practitioners ignore.**[^numbers]
 
 Picture the whole section as a **funnel**. Many candidate factors enter at the top. Each gate rejects some. Only a few survive to become eligible for real (paper) capital.
 
@@ -202,7 +202,7 @@ The cleanest way to answer is to *manufacture* randomness and compare. The platf
 
 This is a subtle, expensive trap. If your historical universe only contains companies that *survived* to today, your backtest is quietly cheating: it never had to live through the bankruptcies, delistings, and wipeouts that real money would have suffered. Worse, the academic literature shows the danger is not mainly in inflated *returns* — it is in inflated **predictability**: survival-filtering manufactures the *appearance* of a working signal where none exists.
 
-SBFoundation measures this directly. It splices **4,858 delisted companies** back into history — assigning realistic terminal losses to names that went to zero — and re-runs the evidence. The measured damage to the platform's central momentum factor was an information-ratio gap of about **−0.035**. The validation gate now **subtracts** this haircut rather than pretending dead companies never existed.
+Strawberry Labs measures this directly. It splices **4,858 delisted companies** back into history — assigning realistic terminal losses to names that went to zero — and re-runs the evidence. The measured damage to the platform's central momentum factor was an information-ratio gap of about **−0.035**. The validation gate now **subtracts** this haircut rather than pretending dead companies never existed.
 
 *Grounded in:* **Brown, Goetzmann, Ibbotson and Ross (1992)** — survival-truncation manufactures false persistence; **Shumway (1997)** and **Shumway and Warther (1999)** — the canonical delisting-loss constants (roughly −30% for NYSE/AMEX, −55% for Nasdaq) and the finding that correcting for this can make an apparent "size premium" vanish entirely; **Carhart, Carpenter, Lynch and Musto (2002)** — the bias grows with sample length; **Beaver, McNichols and Price (2007)** — the bias is anomaly-specific in sign.
 
@@ -372,7 +372,7 @@ If you are evaluating whether this approach is worth adopting, here is the busin
 3. **Radical honesty as a trust signal.** A platform that openly tells you what it has *not* yet proven — that nightly runs only monitor, that promotion needs deep evidence, that live trading is still ahead — is one you can believe when it says something *is* proven.
 4. **Purpose-built for one operator.** No institutional bloat, no fights you cannot win. The deliberate exclusions are not limitations; they are the reason the tool is sharp.
 
-SBFoundation is a **sole-trader, nightly, multi-asset risk-premium harvester whose differentiator is statistical discipline borrowed from the people who measured the problem.** It is early and deliberately phased: paper-proven from July 1, 2026, with its first live strategy on October 1, 2026. What you are being shown is not a finished product oversold — it is a discipline crossing into real capital on a date it had to *earn*.
+Strawberry Labs is a **sole-trader, nightly, multi-asset risk-premium harvester whose differentiator is statistical discipline borrowed from the people who measured the problem.** It is early and deliberately phased: paper-proven from July 1, 2026, with its first live strategy on October 1, 2026. What you are being shown is not a finished product oversold — it is a discipline crossing into real capital on a date it had to *earn*.
 
 ---
 

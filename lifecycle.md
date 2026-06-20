@@ -89,6 +89,28 @@ the nightly goal.
 full gauntlet (F1) and **carries the cumulative trial count forward**, so the Deflated
 Sharpe bar rises with each attempt. This is the structural defense against "test until it passes."
 
+### 1.4 Pool priority ordering
+
+When a slot frees, F0 pulls the **highest-priority** pool factor. Because pool factors are
+unworked, ordering uses only *cheap, pre-gauntlet* signals plus history. Ranked key, descending:
+
+1. **Operator pin** — a manual priority override always wins.
+2. **Economic-rationale prior** — strength of the causal story. Grounded in Harvey–Liu–Zhu's
+   treatment of the prior probability that a factor is real as a first-class input: test the
+   factors most likely to be real first.
+3. **Independence estimate** — a cheap correlation of the candidate against the validated set;
+   prefer likely-orthogonal candidates (predicts surviving the independence gate).
+4. **Cheap IC pre-screen** — an optional one-time, nightly-grade IC computed at registration
+   (not a deep run) to triage obvious noise.
+5. **Trial-count penalty (revived factors)** — subtract for accumulated trials: each prior
+   attempt has already raised the Deflated-Sharpe bar, so a high-trial revival is both less
+   likely to clear and more expensive to re-test. A revival earns priority only when its
+   *new evidence* outweighs its trial burden.
+6. **Age-in-pool** — a FIFO/anti-starvation term: priority rises slowly with time waited.
+
+The pin and the age term bound the two failure modes — operator-critical factors never wait,
+and ordinary factors never wait forever.
+
 ---
 
 ## 2. Strategy lifecycle
@@ -159,6 +181,32 @@ Each strategy is **(validated factor) × (seed mechanic) × (sweep axes under bu
 (lockbox confirm)**. The seed is the *literature-canonical* configuration, so the sweep
 explores around a defensible point. Every swept config is charged to the overfitting
 budget; only the lockbox-confirmed winner may take edge S1.
+
+### 4.1 Seed roster
+
+These are the seed strategies the funnel spawns as their backing factors validate (cascade
+C1). Each is one validated factor bound to one canonical mechanic — and a single factor may
+seed more than one strategy.
+
+| Strategy | Backing factor | Phase | Go-live | Asset class |
+| --- | --- | --- | --- | --- |
+| Cross-sectional momentum (12-1) | 12-1 momentum | 0 | **first live Oct 1, 2026** | Equities |
+| Quality / value | quality / value composite | 0 | paper Jul 1 | Equities |
+| Low-volatility / defensive | low realized vol | 0 | paper Jul 1 | Equities |
+| Cross-sectional reversal (5-day) | 5-day reversal | 1 | paper | Equities |
+| Sector / country rotation | ETF momentum | 1 | paper (lift ETF exclusion) | ETFs |
+| Time-series momentum (trend) | trend (per-instrument) | 1 | paper | Equities, ETFs |
+| Long/short experiment | **12-1 momentum** *(shared with row 1)* | 1 | paper (dollar-neutral) | Equities |
+
+**One factor, many strategies.** 12-1 momentum backs both the Phase-0 long-only strategy and
+the Phase-1 long/short experiment: the factor validates *once*, but each strategy is a separate
+`incubating` stub with its own mechanic and its own lockbox confirmation (S1). The hard rule
+binds each row — no strategy leaves `incubating` until its backing factor is `validated`.
+
+**Negative space.** Stat-arb, merger-arb, and HFT/microstructure families are deliberately
+absent from the roster — excluded by design (whitepaper §3, §7), not pending.
+
+### 4.2 Sweep contract
 
 | Strategy | Phase | Seed mechanic | Sweep axes (varied) | Held fixed |
 | --- | --- | --- | --- | --- |
@@ -368,3 +416,156 @@ than silent drift, consistent with the platform's honesty posture.
 | Staleness-preempt multiple | 2× lifetime | hard anti-starvation bound |
 | Audit estimator | EWMA mean + spread | per task type; persistent log |
 | Lifetimes | see §7.2 registry | **clock-based (market-days) only** |
+
+---
+
+## 8. Audit log schema
+
+Three records wire the loop in §7. **`run_audit`** and **`task_timing`** are append-only
+logs (the dashboard's run history); **`task_state`** is materialized current state, one row
+per task type, read by the admission controller (§7.3) and the freshness check (§7.4) and
+rewritten after every run.
+
+### 8.1 `run_audit` — one row per nightly run
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `run_id` | text (PK) | the single run identity stamped end-to-end (whitepaper §4) |
+| `trade_date` | date | market date the run produces orders for |
+| `started_at` / `ended_at` | timestamp | — |
+| `wall_clock_s` | int | total run seconds |
+| `mandatory_s` / `monitoring_s` / `research_s` | int | actuals by budget class |
+| `pred_mandatory_s` / `pred_monitoring_s` | int | what the cost model predicted — enables predicted-vs-actual audit |
+| `research_residual_s` | int | admitted research budget = goal − predicted |
+| `goal_s` / `ceiling_s` | int | operative budget that night (36000 / 43200) — logged so changes are traceable |
+| `outcome` | enum | `within_goal` · `used_buffer` · `breached_ceiling` |
+| `n_pool` / `n_experimental` / `n_validated` / `n_deprecated` | int | tier occupancy snapshot — trends the tax and the creep alarm |
+| `alarm` | enum? | `mandatory_creep` · `overrun` · null |
+
+### 8.2 `task_timing` — one row per task executed in a run
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `run_id` | text (FK) | → `run_audit` |
+| `task_id` | text | instance id, e.g. `survivorship:2026-06-20` — PK with `run_id` |
+| `task_type` | text | §7.2 registry key, e.g. `survivorship_splice` — the key the cost model aggregates on |
+| `target_ref` | text? | factor / strategy / universe / panel it acted on |
+| `class` | enum | `mandatory` · `monitoring` · `research` |
+| `mode` | enum | `clock` · `event` · `on_demand` |
+| `predicted_s` | int | the `ĉ_τ` used at admission |
+| `actual_s` | int | measured wall-clock — feeds the EWMA |
+| `status` | enum | `completed` · `checkpointed` · `deferred` · `preempted` · `failed` |
+| `progress` | text? | for checkpointed tasks, e.g. `2000/5000 shuffles` |
+| `priority` / `urgency` | float | values used in ordering — for debugging the scheduler |
+
+### 8.3 `task_state` — one row per task type (materialized)
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `task_type` | text (PK) | — |
+| `lifetime_md` | int? | null for `event` / `on_demand` |
+| `mode` | enum | `clock` · `event` · `on_demand` |
+| `last_run_md` | int | **last-run cursor** (market-day index) |
+| `due_md` | int? | `last_run_md + lifetime_md` |
+| `ewma_mean_s` / `ewma_sd_s` | float | the rolling cost model |
+| `samples` | int | drives cold-start margin widening |
+| `est_cost_s` | int | materialized `ĉ_τ = mean + k·sd` — what admission reads |
+| `state` | enum | `fresh` · `due` · `overdue` · `preempt` (≥ 2× lifetime) |
+
+### 8.4 The loop
+
+After each run: `task_timing.actual_s` updates `task_state.ewma_mean_s/ewma_sd_s`,
+`samples += 1`, and `last_run_md`/`due_md` advance for tasks that ran. Next night, admission
+(§7.3) reads `est_cost_s` and `state` to size the residual and order the queue; the freshness
+check (§7.4) flags a `validated` factor `evidence-stale` when any periodic gate beneath it
+shows `state ∈ {overdue, preempt}`. Retain the two logs ≥ 252 md for trend and dashboard;
+`task_state` holds current state only.
+
+---
+
+## 9. Parameter provenance
+
+The gauntlet thresholds (§5, top rows) are already grounded in the whitepaper's bibliography.
+This section is about the **lifecycle and operational** parameters — the ones marked *ratify* —
+and is deliberately honest about how well-founded each is. Three tiers:
+
+- **`F` — finance literature.** Directly grounded in asset-pricing research or model-risk practice.
+- **`X` — cross-domain.** Established in another field (control theory, real-time scheduling,
+  lean/queueing, statistical process control) and imported here by analogy.
+- **`H` — heuristic.** A sensible operator default with no direct source — flagged so it is
+  *calibrated against your own data*, not trusted on faith.
+
+| Parameter | Default | Tier | Grounding |
+| --- | --- | --- | --- |
+| Recert TTL | 252 md | `F` | Risk-based model validation: material models are revalidated annually, lower-risk ones on longer cycles with continuous monitoring. McLean–Pontiff post-publication decay (~58%) makes time-bounding a validation necessary, not optional. |
+| Demotion IR band | rolling IR < 0.10 | `X`+`H` | The *gap* below the 0.2 promotion hurdle is hysteresis (control theory — prevents chattering across a single threshold). The exact 0.10 (half the hurdle) is heuristic. |
+| Statistical-reject cooldown | ≥ 63 new OOS md | `F`+`H` | Re-testing on the same window inflates false discovery (Harvey–Liu–Zhu); the real control is the deflation carry-forward (Bailey–López de Prado). 63 md ≈ one fresh quarter is the heuristic increment. |
+| Deprecated-revival window | IC > hurdle ≥ 63 md | `H` | Same anti-noise logic as the demotion band — require *sustained*, not transient, recovery. Length is heuristic. |
+| Conservatism `k` | 2 (≈ p98) | `X` | A service-level/quantile choice under uncertain execution time; standard in SPC and real-time scheduling. |
+| Spike buffer | 2h (→ 12h ceiling) | `H` | Operator slack/risk-tolerance choice; slack-time margin from real-time scheduling. |
+| Staleness-preempt | 2× lifetime | `X`+`H` | Bounded-tardiness preemption (EDF) grounds the principle; 2× is heuristic. |
+| Experimental WIP cap | budget-derived | `X` | Lean/Kanban WIP limit + Little's law — bounding WIP bounds cycle time. The number itself falls out of §6. |
+| EWMA cost estimator | mean + spread | `X` | EWMA control charts (Roberts, 1959) — a standard performance-estimation method. |
+| Survivorship cadence | 63 md | `F`+`H` | Survivorship bias grows with sample length (Carhart et al., 2002), so periodic recompute is justified; the delisting constants are grounded (Shumway). Quarterly cadence is heuristic. |
+| Crowding cadence | 63 md | `F` | 13F ownership data updates quarterly — the ownership signal *cannot* change faster, so the cadence is data-grounded. |
+| Cost / capacity cadence | 21 md | `H` | Monthly heuristic; spreads and ADV drift on roughly monthly horizons. |
+| Pool rationale-prior rank | §1.4 | `F` | Harvey–Liu–Zhu prior-probability framing — test the factors most likely to be real first. |
+
+**Reading the tiers.** `F` rows you can defend in public. `X` rows are safe but borrowed —
+the principle transfers, the exact number still wants calibration. `H` rows are explicitly
+provisional: measure, then set. None should be treated as settled until the audit log (§8)
+has enough history to tune them against this platform's own runs.
+
+---
+
+## 10. Provenance & prior art
+
+This spec invents little, and says so plainly — the same posture the whitepaper takes toward
+its gauntlet. It is best read as three layers, each with a different lineage, assembled into
+one machine.
+
+The **statistical core** — the validation gates of whitepaper §5 — *is* the literature, and
+its provenance is the whitepaper's own bibliography (Harvey–Liu–Zhu on the t > 3 hurdle,
+Bailey and López de Prado on overfitting and the Deflated Sharpe, the survivorship and cost
+references, and so on). Nothing here is novel, by design.
+
+The **lifecycle staging** — `validated → monitored → deprecated/retired`, with periodic
+recertification and breach-triggered review — is, in substance, **model risk management** as
+practised in regulated finance. The SR 11-7 tradition (Federal Reserve / OCC, 2011) frames a
+model's life as development → validation → ongoing monitoring → decommissioning, with
+risk-based revalidation frequency (annual for material models, longer cycles plus continuous
+monitoring for lower-risk ones) and an independent "effective challenge." That guidance was
+formally rescinded in April 2026 and replaced by a more explicitly risk-based, principles-driven
+interagency framework, but the lifecycle principles it codified persist and are mirrored in
+**MLOps** champion/challenger and model-registry practice. Our factor and strategy lifecycles
+import that established pattern into a sole-trader context; the recertification TTL is forced,
+not chosen, by post-publication decay (McLean and Pontiff, 2016: returns roughly 26% lower
+out-of-sample, 58% lower post-publication).
+
+The **scheduling layer** — the time-budgeted admission controller (§6–§7), task lifetimes, the
+EWMA cost model, the WIP-limited `experimental` tier, and EDF-style escalation — borrows from
+outside finance entirely: real-time scheduling (Liu and Layland, 1973, for earliest-deadline-first
+and bounded tardiness), lean/queueing theory (Little's law, 1961, and Kanban WIP limits),
+statistical process control (Roberts, 1959, for the EWMA chart), and the slack/error-budget
+discipline familiar from site-reliability engineering.
+
+**The honest verdict.** No single component is unproven — each is standard in its own field.
+But I am not aware of a published consensus blueprint for the *specific* synthesis: a nightly
+factor-research pipeline that couples a literature-grade validation gauntlet to a model-risk
+lifecycle *and* a self-auditing admission scheduler. The closest named reference points are
+model risk management for the governance half and MLOps for the lifecycle half; there is no
+off-the-shelf "factor-research lifecycle + scheduler" standard to copy. The assembly is bespoke;
+the parts are conservative. That is stated here so the repo carries the same candour about its
+origins that the whitepaper carries about its numbers.
+
+*Reference pointers (grouped by layer):*
+
+- **Statistical core** — see whitepaper §10 (Harvey–Liu–Zhu 2016; Bailey & López de Prado 2014;
+  López de Prado 2018; Shumway 1997; Corwin & Schultz 2012; and others).
+- **Lifecycle & governance** — SR 11-7, *Supervisory Guidance on Model Risk Management*
+  (Federal Reserve / OCC, 2011; rescinded and replaced by a risk-based interagency framework,
+  April 2026); MLOps champion/challenger and model-registry practice.
+- **Decay (why validation must expire)** — McLean & Pontiff (2016), *Does Academic Research
+  Destroy Stock Return Predictability?*, Journal of Finance.
+- **Scheduling & control** — Liu & Layland (1973), EDF / rate-monotonic scheduling;
+  Little (1961), Little's law (WIP ↔ cycle time); Roberts (1959), EWMA control charts.
